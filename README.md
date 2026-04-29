@@ -34,8 +34,6 @@ as the [OpenAI API](https://platform.openai.com/docs/api-reference/audio/createT
 |----------------|-------|-----------|------------|
 | `ctc` (default) | Parakeet-CTC 0.6B | English | Word-level |
 | `tdt` | Parakeet-TDT 0.6B v3 | 25 languages | Word / sentence |
-| `eou` | Parakeet-EOU 120M | English | — |
-| `nemotron` | Nemotron streaming 0.6B | English | — |
 
 ---
 
