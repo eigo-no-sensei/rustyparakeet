@@ -20,8 +20,6 @@ use axum::{
 use clap::{Parser, ValueEnum};
 use error::AppError;
 use parakeet_rs::{ExecutionConfig, ExecutionProvider, Nemotron, Parakeet, ParakeetEOU, ParakeetTDT, TimestampMode, Transcriber};
-#[cfg(feature = "cohere")]
-use parakeet_rs::CohereASR;
 use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
@@ -34,8 +32,6 @@ enum ModelType {
     Tdt,
     Eou,
     Nemotron,
-    #[cfg(feature = "cohere")]
-    Cohere,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -78,21 +74,6 @@ struct Args {
     /// Execution provider for ONNX runtime.
     #[arg(long, value_enum, default_value = "webgpu", env = "PARAKEET_PROVIDER")]
     provider: Provider,
-
-    /// Language code for Cohere model (ar/de/el/en/es/fr/it/ja/ko/nl/pl/pt/vi/zh).
-    #[cfg(feature = "cohere")]
-    #[arg(long, default_value = "en", env = "PARAKEET_LANGUAGE")]
-    language: String,
-
-    /// Enable punctuation and capitalisation for Cohere model.
-    #[cfg(feature = "cohere")]
-    #[arg(long, default_value = "true", env = "PARAKEET_PNC")]
-    pnc: bool,
-
-    /// Enable inverse text normalisation for Cohere model.
-    #[cfg(feature = "cohere")]
-    #[arg(long, default_value = "false", env = "PARAKEET_ITN")]
-    itn: bool,
 }
 
 // ─── Model abstraction ────────────────────────────────────────────────────────
@@ -113,8 +94,6 @@ enum Model {
     Tdt(ParakeetTDT),
     Eou(ParakeetEOU),
     Nemotron(Nemotron),
-    #[cfg(feature = "cohere")]
-    Cohere { inner: CohereASR, language: String, pnc: bool, itn: bool },
 }
 
 impl Model {
@@ -124,8 +103,6 @@ impl Model {
             Model::Tdt(_) => "parakeet-tdt-0.6b-v3",
             Model::Eou(_) => "parakeet-eou-120m-v1",
             Model::Nemotron(_) => "nemotron-streaming-0.6b",
-            #[cfg(feature = "cohere")]
-            Model::Cohere { .. } => "cohere-transcribe",
         }
     }
 
@@ -178,17 +155,6 @@ impl Model {
                 Ok(Transcript {
                     text: text.trim().to_owned(),
                    tokens: vec![],
-                })
-            }
-
-            // ── Cohere (encoder-decoder, multilingual) ───────────────────────
-            #[cfg(feature = "cohere")]
-            Model::Cohere { inner, language, pnc, itn } => {
-                let mono_16k = audio.to_16k_mono();
-                let text = inner.transcribe_audio(&mono_16k, language, *pnc, *itn)?;
-                Ok(Transcript {
-                    text: text.trim().to_owned(),
-                    tokens: vec![],
                 })
             }
         }
@@ -505,14 +471,6 @@ async fn main() -> anyhow::Result<()> {
             Nemotron::from_pretrained(&args.model_dir, Some(model_config))
             .map_err(|e| anyhow::anyhow!("Nemotron load failed: {e}"))?,
         ),
-        #[cfg(feature = "cohere")]
-        ModelType::Cohere => Model::Cohere {
-            inner: CohereASR::from_pretrained(&args.model_dir, None)
-                .map_err(|e| anyhow::anyhow!("Cohere load failed: {e}"))?,
-            language: args.language.clone(),
-            pnc: args.pnc,
-            itn: args.itn,
-        },
     };
 
     let model_id = model.id();
