@@ -3,6 +3,7 @@
 An **OpenAI-compatible ASR REST server** built on top of
 [parakeet-rs](https://github.com/altunenes/parakeet-rs).  
 Drop it in wherever you would use the OpenAI Whisper API.
+This is a WIP and probably not reliable. 
 
 ---
 
